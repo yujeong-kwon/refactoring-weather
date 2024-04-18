@@ -41,7 +41,8 @@ extension ViewController {
     }
     
     @objc private func refresh() {
-        fetchWeatherJSON()
+        let weatherInfo: WeatherInfo = WeatherInfo(delegate: self)
+        weatherJSON = weatherInfo.fetchWeatherJSON()
         tableView.reloadData()
         refreshControl.endRefreshing()
     }
@@ -74,29 +75,6 @@ extension ViewController {
             tableView.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor),
             tableView.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor)
         ])
-    }
-}
-
-extension ViewController {
-    private func fetchWeatherJSON() {
-        
-        let jsonDecoder: JSONDecoder = .init()
-        jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
-
-        guard let data = NSDataAsset(name: "weather")?.data else {
-            return
-        }
-        
-        let info: WeatherJSON
-        do {
-            info = try jsonDecoder.decode(WeatherJSON.self, from: data)
-        } catch {
-            print(error.localizedDescription)
-            return
-        }
-
-        weatherJSON = info
-        navigationItem.title = weatherJSON?.city.name
     }
 }
 
@@ -163,4 +141,9 @@ extension ViewController: UITableViewDelegate {
     }
 }
 
+extension ViewController: WeatherInfoDelegate {
+    func refreshNavigationTitle(title: String) {
+        navigationItem.title = title
+    }
+}
 
