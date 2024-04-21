@@ -7,18 +7,14 @@
 import UIKit
 
 class ViewController: UIViewController {
-    var tableView: UITableView!
-    let refreshControl: UIRefreshControl = UIRefreshControl()
     var weatherJSON: WeatherJSON?
-    var icons: [UIImage]?
-    let imageChache: NSCache<NSString, UIImage> = NSCache()
     let dateFormatter: DateFormatter = {
         let formatter: DateFormatter = DateFormatter()
         formatter.locale = .init(identifier: "ko_KR")
         formatter.dateFormat = "yyyy-MM-dd(EEEEE) a HH:mm"
         return formatter
     }()
-    
+    private let imageChache: NSCache<NSString, UIImage> = NSCache()
     var tempUnit: TempUnit = .metric
     
     override func viewDidLoad() {
@@ -40,105 +36,20 @@ extension ViewController {
         refresh()
     }
     
-    @objc private func refresh() {
-        let weatherInfo: WeatherInfo = WeatherInfo(delegate: self)
-        weatherJSON = weatherInfo.fetchWeatherJSON()
-        tableView.reloadData()
-        refreshControl.endRefreshing()
-    }
-    
     private func initialSetUp() {
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "화씨", image: nil, target: self, action: #selector(changeTempUnit))
         
-        layTable()
+        guard let weatherView: WeatherView = view as? WeatherView else {return}
+        weatherView.delegate = self
         
-        refreshControl.addTarget(self,
-                                 action: #selector(refresh),
-                                 for: .valueChanged)
+        weatherView.layTable()
         
-        tableView.refreshControl = refreshControl
-        tableView.register(WeatherTableViewCell.self, forCellReuseIdentifier: "WeatherCell")
-        tableView.dataSource = self
-        tableView.delegate = self
+        weatherView.refreshAddTarget() 
+        
+        weatherView.setTableView()
+        
     }
     
-    private func layTable() {
-        tableView = .init(frame: .zero, style: .plain)
-        view.addSubview(tableView)
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        
-        let safeArea: UILayoutGuide = view.safeAreaLayoutGuide
-        
-        NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: safeArea.topAnchor),
-            tableView.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor),
-            tableView.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor)
-        ])
-    }
-}
-
-extension ViewController: UITableViewDataSource {
-    
-    func numberOfSections(in tableView: UITableView) -> Int {
-        1
-    }
-    
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        weatherJSON?.weatherForecast.count ?? 0
-    }
-    
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell: UITableViewCell = tableView.dequeueReusableCell(withIdentifier: "WeatherCell", for: indexPath)
-        
-        guard let cell: WeatherTableViewCell = cell as? WeatherTableViewCell,
-              let weatherForecastInfo = weatherJSON?.weatherForecast[indexPath.row] else {
-            return cell
-        }
-        
-        cell.weatherLabel.text = weatherForecastInfo.weather.main
-        cell.descriptionLabel.text = weatherForecastInfo.weather.description
-        cell.temperatureLabel.text = "\(weatherForecastInfo.main.temp)\(tempUnit.expression)"
-        
-        let date: Date = Date(timeIntervalSince1970: weatherForecastInfo.dt)
-        cell.dateLabel.text = dateFormatter.string(from: date)
-                
-        let iconName: String = weatherForecastInfo.weather.icon         
-        let urlString: String = "https://openweathermap.org/img/wn/\(iconName)@2x.png"
-                
-        if let image = imageChache.object(forKey: urlString as NSString) {
-            cell.weatherIcon.image = image
-            return cell
-        }
-        
-        Task {
-            guard let url: URL = URL(string: urlString),
-                  let (data, _) = try? await URLSession.shared.data(from: url),
-                  let image: UIImage = UIImage(data: data) else {
-                return
-            }
-            
-            imageChache.setObject(image, forKey: urlString as NSString)
-            
-            if indexPath == tableView.indexPath(for: cell) {
-                cell.weatherIcon.image = image
-            }
-        }
-        
-        return cell
-    }
-}
-
-extension ViewController: UITableViewDelegate {
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-        
-        let detailViewController: WeatherDetailViewController = WeatherDetailViewController()
-        detailViewController.weatherForecastInfo = weatherJSON?.weatherForecast[indexPath.row]
-        detailViewController.cityInfo = weatherJSON?.city
-        detailViewController.tempUnit = tempUnit
-        navigationController?.show(detailViewController, sender: self)
-    }
 }
 
 extension ViewController: WeatherInfoDelegate {
@@ -147,3 +58,51 @@ extension ViewController: WeatherInfoDelegate {
     }
 }
 
+extension ViewController: WeatherViewDelegate {
+    func refresh() {
+        let weatherInfo: WeatherInfo = WeatherInfo(delegate: self)
+        weatherJSON = weatherInfo.fetchWeatherJSON()
+        
+        guard let weatherView: WeatherView = view as? WeatherView else {return}
+        weatherView.tableViewReloadData()
+        weatherView.refreshControlEndRefreshing()
+    }
+    
+    func tableViewDidSelectRowAt(view: WeatherView, row: Int) {
+        let detailViewController: WeatherDetailViewController = WeatherDetailViewController()
+        detailViewController.weatherForecastInfo = weatherJSON?.weatherForecast[row]
+        detailViewController.cityInfo = weatherJSON?.city
+        detailViewController.tempUnit = tempUnit
+        navigationController?.show(detailViewController, sender: self)
+    }
+    
+    func getWeatherForecastInfoCount() -> Int {
+        return weatherJSON?.weatherForecast.count ?? 0
+    }
+    
+    func getWeatherForecastInfo(row: Int) -> WeatherForecastInfo? {
+        return weatherJSON?.weatherForecast[row] ?? nil
+    }
+    
+    func getTempUnit() -> String {
+        return tempUnit.expression
+    }
+    
+    func convertDateToString(date: Date) -> String {
+        return dateFormatter.string(from: date)
+    }
+    
+    func getImageChacheObject(urlString: String) -> UIImage? {
+        if let image = imageChache.object(forKey: urlString as NSString)
+        {
+            return image
+        }
+        
+        return nil
+    }
+    
+    func setImageChacheObject(image: UIImage, urlString: String) {
+        imageChache.setObject(image, forKey: urlString as NSString)
+    }
+    
+}
