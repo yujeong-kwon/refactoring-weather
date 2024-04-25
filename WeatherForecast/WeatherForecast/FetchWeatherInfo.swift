@@ -8,15 +8,15 @@
 import Foundation
 import UIKit
 
-protocol WeatherInfoDelegate {
+protocol FetchWeatherInfoDelegate {
     func refreshNavigationTitle(title: String)
 }
 
-final class WeatherInfo {
+final class FetchWeatherInfo {
 
-    private var delegate: WeatherInfoDelegate
+    private var delegate: FetchWeatherInfoDelegate
     
-    init(delegate: WeatherInfoDelegate) {
+    init(delegate: FetchWeatherInfoDelegate) {
         self.delegate = delegate
     }
     
@@ -36,7 +36,14 @@ final class WeatherInfo {
             print(error.localizedDescription)
             return nil
         }
-        delegate.refreshNavigationTitle(title: info.city.name)
+        Task { @MainActor in
+            await refreshNavigation(with: info)
+        }
+        
         return info
+    }
+    
+    @MainActor func refreshNavigation(with info: WeatherJSON) async {
+        delegate.refreshNavigationTitle(title: info.city.name)
     }
 }

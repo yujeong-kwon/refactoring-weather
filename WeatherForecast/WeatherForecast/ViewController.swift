@@ -46,13 +46,13 @@ extension ViewController {
         
         weatherView.refreshAddTarget() 
         
-        weatherView.setTableView()
+        weatherView.configureTableView()
         
     }
     
 }
 
-extension ViewController: WeatherInfoDelegate {
+extension ViewController: FetchWeatherInfoDelegate {
     func refreshNavigationTitle(title: String) {
         navigationItem.title = title
     }
@@ -60,7 +60,7 @@ extension ViewController: WeatherInfoDelegate {
 
 extension ViewController: WeatherViewDelegate {
     func refresh() {
-        let weatherInfo: WeatherInfo = WeatherInfo(delegate: self)
+        let weatherInfo: FetchWeatherInfo = FetchWeatherInfo(delegate: self)
         weatherJSON = weatherInfo.fetchWeatherJSON()
         
         guard let weatherView: WeatherView = view as? WeatherView else {return}

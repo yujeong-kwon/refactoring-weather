@@ -100,4 +100,15 @@ class WeatherTableViewCell: UITableViewCell {
         weatherLabel.text = "~~~"
         descriptionLabel.text = "~~~~~"
     }
+    
+    func setCellLabel(weatherForecastInfo: WeatherForecastInfo, tempUnit: String, dateStr: String) {
+        weatherLabel.text = weatherForecastInfo.weather.main
+        descriptionLabel.text = weatherForecastInfo.weather.description
+        temperatureLabel.text = "\(weatherForecastInfo.main.temp)\(tempUnit)"
+        dateLabel.text = dateStr
+    }
+    
+    func updateWeatherIcon(with iconImage: UIImage) {
+        weatherIcon.image = iconImage
+    }
 }

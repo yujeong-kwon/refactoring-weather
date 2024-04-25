@@ -26,7 +26,7 @@ class WeatherView: UIView {
     
     var delegate: WeatherViewDelegate?
    
-    func setTableView(){
+    func configureTableView(){
         tableView.refreshControl = refreshControl
         tableView.register(WeatherTableViewCell.self, forCellReuseIdentifier: "WeatherCell")
         tableView.dataSource = self
@@ -45,10 +45,10 @@ class WeatherView: UIView {
         tableView = .init(frame: .zero, style: .plain)
         self.addSubview(tableView)
         
-        setTableViewConstraint()
+        configureTableViewConstraint()
     }
     
-    func setTableViewConstraint() {
+    func configureTableViewConstraint() {
         tableView.translatesAutoresizingMaskIntoConstraints = false
         let safeArea: UILayoutGuide = self.safeAreaLayoutGuide
         
@@ -89,52 +89,48 @@ extension WeatherView: UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell: UITableViewCell = tableView.dequeueReusableCell(withIdentifier: "WeatherCell", for: indexPath)
         
-        guard let cell: WeatherTableViewCell = cell as? WeatherTableViewCell,
+        guard let cell: WeatherTableViewCell = tableView.dequeueReusableCell(withIdentifier: "WeatherCell", for: indexPath) as? WeatherTableViewCell,
               let weatherForecastInfo = delegate?.getWeatherForecastInfo(row: indexPath.row) else {
-            return cell
+            return UITableViewCell()
         }
         
-        setCellLabel(cell: cell, weatherForecastInfo: weatherForecastInfo)
-        
-        let iconName: String = weatherForecastInfo.weather.icon
-        let urlString: String = "https://openweathermap.org/img/wn/\(iconName)@2x.png"
-        
-        
-        if let image = delegate?.getImageChacheObject(urlString: weatherForecastInfo.weather.icon) {
-            cell.weatherIcon.image = image
-            return cell
-        }
-        
-        Task {
-            guard let url: URL = URL(string: urlString),
-                  let (data, _) = try? await URLSession.shared.data(from: url),
-                  let image: UIImage = UIImage(data: data) else {
-                return
-            }
-            
-            delegate?.setImageChacheObject(image: image, urlString: urlString)
-            
-            if indexPath == tableView.indexPath(for: cell) {
-                cell.weatherIcon.image = image
-            }
-            
-        }
-    
+        setCellLabel(for: cell, with: weatherForecastInfo)
+        updateWeatherIcon(for: cell, at: indexPath, with: weatherForecastInfo)
+
         return cell
     }
     
-    func setCellLabel(cell: WeatherTableViewCell, weatherForecastInfo: WeatherForecastInfo) {
-        cell.weatherLabel.text = weatherForecastInfo.weather.main
-        cell.descriptionLabel.text = weatherForecastInfo.weather.description
-        cell.temperatureLabel.text = "\(weatherForecastInfo.main.temp)\( delegate?.getTempUnit() ?? "")"
-        
+    func setCellLabel(for cell: WeatherTableViewCell, with weatherForecastInfo: WeatherForecastInfo) {
+        let tempUnit = delegate?.getTempUnit() ?? ""
         let date: Date = Date(timeIntervalSince1970: weatherForecastInfo.dt)
-        cell.dateLabel.text = delegate?.convertDateToString(date: date)
+        let dateStr = delegate?.convertDateToString(date: date) ?? ""
+        
+        cell.setCellLabel(weatherForecastInfo: weatherForecastInfo, tempUnit: tempUnit, dateStr: dateStr)
+        
     }
     
-    func setCellImage(cell: WeatherTableViewCell, weatherForecastInfo: WeatherForecastInfo) {
+    func updateWeatherIcon(for cell: WeatherTableViewCell, at indexPath: IndexPath, with weatherForecastInfo: WeatherForecastInfo) {
+        let iconName: String = weatherForecastInfo.weather.icon
+        let urlString = "https://openweathermap.org/img/wn/\(iconName)@2x.png"
         
+        let image = delegate?.getImageChacheObject(urlString: iconName) ?? UIImage()
+        
+        cell.updateWeatherIcon(with: image)
+        Task {
+            guard let url: URL = URL(string: urlString),
+                let (data, _) = try? await URLSession.shared.data(from: url),
+                let image: UIImage = UIImage(data: data) else {
+                return
+                
+            }
+              
+            delegate?.setImageChacheObject(image: image, urlString: urlString)
+              
+            if indexPath == tableView.indexPath(for: cell) {
+                cell.updateWeatherIcon(with: image)
+            }
+        }
     }
+    
 }
